@@ -1,14 +1,47 @@
-import axios from 'axios';
+import axios, { AxiosInstance } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ENV } from '../config/env';
 
-// Base URL for your Django backend
-const BASE_URL = ENV.API_BASE_URL;
+// =====================================
+// CENTRALIZED API CONFIGURATION
+// =====================================
+
+// API Configuration
+export const API_CONFIG = {
+  BASE_URL: process.env.EXPO_PUBLIC_API_BASE_URL || 'https://rcckitportal.sun-rack.com/api/',
+  TIMEOUT: 30000, // 30 seconds
+  ENDPOINTS: {
+    // Auth endpoints
+    LOGIN: 'login/',
+    LOGOUT: 'logout/',
+    REGISTER: 'register/',
+    TOKEN_REFRESH: 'token/refresh/',
+    TOKEN_LOGOUT: 'token/logout/',
+    
+    // Business endpoints
+    ENQUIRY: 'enquiry/',
+    ORDERS: 'orders/',
+    KITS: 'kits/',
+    CLIENTS: 'clients/',
+    LOCATIONS: 'locations/',
+    CREATE_ORDER: 'create-order/',
+    USER_ORDERS: 'orders/user/',
+    CUSTOMER_ORDERS: 'orders/customer/',
+  }
+};
+
+// Helper function to get full API URL
+export const getApiUrl = (endpoint: string = '') => {
+  return `${API_CONFIG.BASE_URL}${endpoint}`;
+};
+
+// =====================================
+// AXIOS INSTANCE WITH INTERCEPTORS
+// =====================================
 
 // Create axios instance
-const api = axios.create({
-  baseURL: BASE_URL,
-  timeout: ENV.TIMEOUT,
+const api: AxiosInstance = axios.create({
+  baseURL: API_CONFIG.BASE_URL,
+  timeout: API_CONFIG.TIMEOUT,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -44,7 +77,7 @@ api.interceptors.response.use(
       try {
         const refreshToken = await AsyncStorage.getItem('refresh_token');
         if (refreshToken) {
-          const response = await axios.post(`${BASE_URL}token/refresh/`, {
+          const response = await axios.post(getApiUrl(API_CONFIG.ENDPOINTS.TOKEN_REFRESH), {
             refresh: refreshToken,
           });
 
@@ -57,7 +90,6 @@ api.interceptors.response.use(
       } catch (refreshError) {
         // Refresh failed, redirect to login
         await AsyncStorage.multiRemove(['access_token', 'refresh_token', 'user_data']);
-        // You can add navigation to login screen here
         console.error('Token refresh failed:', refreshError);
       }
     }
@@ -66,12 +98,14 @@ api.interceptors.response.use(
   }
 );
 
-export default api;
+// =====================================
+// API FUNCTIONS
+// =====================================
 
 // Auth API functions
 export const authAPI = {
   login: async (username: string, password: string) => {
-    const response = await api.post('login/', { username, password });
+    const response = await api.post(API_CONFIG.ENDPOINTS.LOGIN, { username, password });
     return response.data;
   },
 
@@ -79,7 +113,7 @@ export const authAPI = {
     try {
       const refreshToken = await AsyncStorage.getItem('refresh_token');
       if (refreshToken) {
-        await api.post('token/logout/', { refresh: refreshToken });
+        await api.post(API_CONFIG.ENDPOINTS.TOKEN_LOGOUT, { refresh: refreshToken });
       }
     } catch (error) {
       console.error('Logout error:', error);
@@ -89,7 +123,7 @@ export const authAPI = {
   },
 
   register: async (userData: any) => {
-    const response = await api.post('register/', userData);
+    const response = await api.post(API_CONFIG.ENDPOINTS.REGISTER, userData);
     return response.data;
   },
 };
@@ -97,27 +131,27 @@ export const authAPI = {
 // Enquiry API functions
 export const enquiryAPI = {
   getAll: async () => {
-    const response = await api.get('enquiry/');
+    const response = await api.get(API_CONFIG.ENDPOINTS.ENQUIRY);
     return response.data;
   },
 
   getById: async (id: string) => {
-    const response = await api.get(`enquiry/${id}/`);
+    const response = await api.get(`${API_CONFIG.ENDPOINTS.ENQUIRY}${id}/`);
     return response.data;
   },
 
   create: async (enquiryData: any) => {
-    const response = await api.post('enquiry/', enquiryData);
+    const response = await api.post(API_CONFIG.ENDPOINTS.ENQUIRY, enquiryData);
     return response.data;
   },
 
   update: async (id: string, enquiryData: any) => {
-    const response = await api.put(`enquiry/${id}/`, enquiryData);
+    const response = await api.put(`${API_CONFIG.ENDPOINTS.ENQUIRY}${id}/`, enquiryData);
     return response.data;
   },
 
   delete: async (id: string) => {
-    const response = await api.delete(`enquiry/${id}/`);
+    const response = await api.delete(`${API_CONFIG.ENDPOINTS.ENQUIRY}${id}/`);
     return response.data;
   },
 };
@@ -125,7 +159,7 @@ export const enquiryAPI = {
 // Kit API functions
 export const kitAPI = {
   getAll: async () => {
-    const response = await api.get('kits/');
+    const response = await api.get(API_CONFIG.ENDPOINTS.KITS);
     return response.data;
   },
 
@@ -138,27 +172,27 @@ export const kitAPI = {
 // Order API functions
 export const orderAPI = {
   getAll: async () => {
-    const response = await api.get('orders/');
+    const response = await api.get(API_CONFIG.ENDPOINTS.ORDERS);
     return response.data;
   },
 
   getById: async (orderId: string) => {
-    const response = await api.get(`orders/${orderId}/`);
+    const response = await api.get(`${API_CONFIG.ENDPOINTS.ORDERS}${orderId}/`);
     return response.data;
   },
 
   getUserOrders: async () => {
-    const response = await api.get('orders/user/');
+    const response = await api.get(API_CONFIG.ENDPOINTS.USER_ORDERS);
     return response.data;
   },
 
   getCustomerOrders: async () => {
-    const response = await api.get('orders/customer/');
+    const response = await api.get(API_CONFIG.ENDPOINTS.CUSTOMER_ORDERS);
     return response.data;
   },
 
   create: async (orderData: any) => {
-    const response = await api.post('create-order/', orderData);
+    const response = await api.post(API_CONFIG.ENDPOINTS.CREATE_ORDER, orderData);
     return response.data;
   },
 };
@@ -166,7 +200,7 @@ export const orderAPI = {
 // Client API functions
 export const clientAPI = {
   getAll: async () => {
-    const response = await api.get('clients/');
+    const response = await api.get(API_CONFIG.ENDPOINTS.CLIENTS);
     return response.data;
   },
 };
@@ -174,10 +208,14 @@ export const clientAPI = {
 // Location API functions
 export const locationAPI = {
   getAll: async () => {
-    const response = await api.get('locations/');
+    const response = await api.get(API_CONFIG.ENDPOINTS.LOCATIONS);
     return response.data;
   },
 };
+
+// =====================================
+// UTILITY FUNCTIONS
+// =====================================
 
 // Utility function to store auth tokens
 export const storeAuthTokens = async (tokens: {
@@ -217,3 +255,6 @@ export const isAuthenticated = async () => {
     return false;
   }
 };
+
+// Export the axios instance for direct use if needed
+export default api;

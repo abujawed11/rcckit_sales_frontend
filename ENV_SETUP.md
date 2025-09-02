@@ -24,30 +24,45 @@ The base URL for your Django backend API.
 - Development (iOS Simulator): `http://127.0.0.1:8000/api/`
 - Development (Physical Device): `http://YOUR_COMPUTER_IP:8000/api/`
 
-## How it works
+## Centralized API Configuration
 
-The app uses a centralized configuration system:
+The app uses a **single, centralized API configuration system** located in `services/api.ts`:
 
+### Features:
 1. **Environment Variables** (`.env` file) - Contains the actual configuration values
-2. **ENV Configuration** (`config/env.ts`) - Reads from environment variables with fallbacks
-3. **API Configuration** (`config/api.ts`) - Provides centralized API configuration and helper functions
-4. **Service Layer** (`services/api.ts`) - Uses the configuration for all API calls
+2. **API Configuration** - Centralized config with all endpoints and settings
+3. **Axios Instance** - Pre-configured with interceptors for authentication
+4. **API Functions** - Ready-to-use functions for all backend operations
+5. **Utility Functions** - Helper functions for authentication and data management
 
-## Usage in Code
+### Usage in Code
 
 ```typescript
-// Using ENV configuration
-import { ENV } from '@/config/env';
-console.log(ENV.API_BASE_URL);
+// Import from the centralized API service
+import { API_CONFIG, getApiUrl, enquiryAPI, authAPI } from '@/services/api';
 
-// Using API configuration helpers
-import { getApiUrl, API_CONFIG } from '@/config/api';
+// Using configuration
+console.log(API_CONFIG.BASE_URL);
 const loginUrl = getApiUrl(API_CONFIG.ENDPOINTS.LOGIN);
+
+// Using API functions
+const enquiries = await enquiryAPI.getAll();
+const loginResult = await authAPI.login(username, password);
 ```
+
+### Available API Functions:
+- **authAPI** - Login, logout, register
+- **enquiryAPI** - CRUD operations for enquiries
+- **orderAPI** - Order management
+- **kitAPI** - Kit information
+- **clientAPI** - Client data
+- **locationAPI** - Location data
 
 ## Important Notes
 
+- **All API configuration is in one place**: `services/api.ts`
 - Never commit the `.env` file to version control
 - Use `.env.example` to document required environment variables
 - The `EXPO_PUBLIC_` prefix makes variables available in the client-side code
-- Always provide fallback values in the configuration files
+- All API calls automatically include authentication headers
+- Token refresh is handled automatically

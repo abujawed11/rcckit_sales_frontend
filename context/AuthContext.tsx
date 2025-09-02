@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getApiUrl, API_CONFIG } from '@/config/api';
+import { getApiUrl, API_CONFIG } from '@/services/api';
 
 interface User {
   success: boolean;
