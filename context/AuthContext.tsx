@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getApiUrl, API_CONFIG } from '@/config/api';
 
 interface User {
   success: boolean;
@@ -22,8 +23,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const API_BASE_URL = 'https://rcckitportal.sun-rack.com/api/';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -49,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true);
       
-      const response = await fetch(`${API_BASE_URL}login/`, {
+      const response = await fetch(getApiUrl(API_CONFIG.ENDPOINTS.LOGIN), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -85,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // Call logout API endpoint if needed
       try {
-        await fetch(`${API_BASE_URL}logout/`, {
+        await fetch(getApiUrl(API_CONFIG.ENDPOINTS.LOGOUT), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
