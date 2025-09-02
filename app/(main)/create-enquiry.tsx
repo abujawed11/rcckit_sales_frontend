@@ -1,4 +1,4 @@
-import "../global.css";
+import "../../global.css";
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
-import { enquiryAPI } from '../services/api';
+import { enquiryAPI } from '@/services/api';
 import { useRouter } from 'expo-router';
 
 const kitNames = [
@@ -173,14 +173,14 @@ export default function CreateEnquiry() {
       className="flex-1 bg-gray-50"
     >
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        <View className="bg-primary-950 px-6 py-6">
+        {/* <View className="bg-primary-950 px-6 py-6">
           <View className="flex-row items-center justify-center">
             <Ionicons name="add-circle" size={28} color="#FAD90E" />
             <Text className="text-secondary-DEFAULT text-xl font-bold ml-3">
               Create Sales Order
             </Text>
           </View>
-        </View>
+        </View> */}
 
         <View className="p-6 space-y-6">
           {/* Customer Type */}

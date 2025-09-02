@@ -1,168 +1,123 @@
-import '../global.css';
+import { configureReanimatedLogger, ReanimatedLogLevel } from 'react-native-reanimated';
+
+configureReanimatedLogger({
+  level: ReanimatedLogLevel.warn,
+  strict: false,
+});
+
+import { AuthProvider } from '@/context/AuthContext';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import * as NavigationBar from 'expo-navigation-bar';
+import { Slot } from 'expo-router';
+import { useEffect } from 'react';
+import { AppState, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { Drawer } from 'expo-router/drawer';
-import { View, Text, Pressable, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { DrawerContentScrollView, DrawerItemList, DrawerItem } from '@react-navigation/drawer';
-import { authAPI } from '../services/api';
+import '../global.css';
 
-function CustomDrawerContent(props: any) {
-  const handleLogout = async () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await authAPI.logout();
-              // You can add navigation to login screen here
-              // For now, we'll just show an alert
-              Alert.alert('Success', 'Logged out successfully');
-            } catch (error) {
-              console.error('Logout error:', error);
-            }
-          },
-        },
-      ]
-    );
-  };
 
-  return (
-    <View className="flex-1 bg-primary-950">
-      <View className="px-6 py-8 bg-secondary-DEFAULT">
-        <View className="flex-row items-center">
-          <Ionicons name="cube" size={32} color="#000000" />
-          <Text className="text-primary-950 text-xl font-bold ml-3">
-            Sunrack RCC Kit
-          </Text>
-        </View>
-      </View>
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Network recovery & retry configuration
+      retry: (failureCount, error: any) => {
+        // Don't retry on 4xx errors (client errors)
+        if (error?.response?.status >= 400 && error?.response?.status < 500) {
+          return false;
+        }
+        // Retry up to 3 times for network/server errors
+        return failureCount < 3;
+      },
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
       
-      <DrawerContentScrollView {...props} className="flex-1 bg-primary-950">
-        <View className="px-4 py-2">
-          <DrawerItem
-            label="Home"
-            labelStyle={{ color: '#FAD90E', fontSize: 16, fontWeight: '600' }}
-            icon={({ focused }) => (
-              <Ionicons 
-                name="home" 
-                size={24} 
-                color={focused ? '#FAD90E' : '#FAD90E'} 
-              />
-            )}
-            onPress={() => props.navigation.navigate('index')}
-          />
-          
-          <DrawerItem
-            label="Create Sales Order"
-            labelStyle={{ color: '#FAD90E', fontSize: 16, fontWeight: '600' }}
-            icon={({ focused }) => (
-              <Ionicons 
-                name="add-circle" 
-                size={24} 
-                color={focused ? '#FAD90E' : '#FAD90E'} 
-              />
-            )}
-            onPress={() => props.navigation.navigate('create-enquiry')}
-          />
-          
-          <DrawerItem
-            label="Orders Tracker"
-            labelStyle={{ color: '#FAD90E', fontSize: 16, fontWeight: '600' }}
-            icon={({ focused }) => (
-              <Ionicons 
-                name="list" 
-                size={24} 
-                color={focused ? '#FAD90E' : '#FAD90E'} 
-              />
-            )}
-            onPress={() => props.navigation.navigate('confirmed-orders')}
-          />
-          
-          <View className="border-t border-secondary-DEFAULT/30 my-4" />
-          
-          <DrawerItem
-            label="Logout"
-            labelStyle={{ color: '#FAD90E', fontSize: 16, fontWeight: '600' }}
-            icon={({ focused }) => (
-              <Ionicons 
-                name="log-out" 
-                size={24} 
-                color={focused ? '#FAD90E' : '#FAD90E'} 
-              />
-            )}
-            onPress={handleLogout}
-          />
-        </View>
-      </DrawerContentScrollView>
-    </View>
-  );
-}
+      // Network recovery settings
+      refetchOnWindowFocus: true, // Refetch when app regains focus
+      refetchOnReconnect: true, // 🔥 KEY: Refetch when network reconnects
+      
+      // Stale time settings
+      staleTime: 5 * 60 * 1000, // 5 minutes - data considered fresh
+      gcTime: 10 * 60 * 1000, // 10 minutes - cache retention (renamed from cacheTime in v5)
+      
+      // Network mode
+      networkMode: 'online', // Only run queries when online
+    },
+    mutations: {
+      retry: 1, // Retry mutations once on network failure
+      networkMode: 'online',
+    },
+  },
+});
+
+// Utility function to hide navigation bar
+const hideNavigationBar = async () => {
+  if (Platform.OS === 'android') {
+    try {
+      await NavigationBar.setBehaviorAsync('inset-swipe');
+      await NavigationBar.setVisibilityAsync('hidden');
+    } catch (e) {
+      console.log('Failed to hide navigation bar:', e);
+    }
+  }
+};
 
 export default function RootLayout() {
+  useEffect(() => {
+    const setupApp = async () => {
+      // Setup notifications
+
+      if (Platform.OS === 'android') {
+
+        // Configure Android navigation bar: persistent hidden state
+        try {
+          // Set dark background and light buttons
+          await NavigationBar.setBackgroundColorAsync('#0a0a0a');
+          await NavigationBar.setButtonStyleAsync('light');
+
+          // Set behavior BEFORE setting visibility for better stability
+          await NavigationBar.setBehaviorAsync('inset-swipe');
+          await NavigationBar.setVisibilityAsync('hidden');
+          
+          // Force hide again after a small delay to ensure it sticks
+          setTimeout(async () => {
+            try {
+              await NavigationBar.setVisibilityAsync('hidden');
+            } catch (retryError) {
+              console.log('Navigation bar retry hide failed:', retryError);
+            }
+          }, 500);
+        } catch (e) {
+          console.log('Navigation bar configuration failed:', e);
+        }
+      }
+    };
+
+    setupApp();
+
+    // 🔥 Setup network listener for auto-refetch on reconnect
+
+    // 🔥 Listen for app state changes to re-hide navigation bar
+    const handleAppStateChange = (nextAppState: string) => {
+      if (nextAppState === 'active') {
+        // Re-hide navigation bar when app becomes active
+        setTimeout(() => {
+          hideNavigationBar();
+        }, 100);
+      }
+    };
+
+    const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      appStateSubscription?.remove();
+    };
+  }, []);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <Drawer 
-        drawerContent={CustomDrawerContent}
-        screenOptions={{
-          drawerType: 'front',
-          headerStyle: {
-            backgroundColor: '#000000',
-          },
-          headerTintColor: '#FAD90E',
-          headerTitleStyle: {
-            fontWeight: 'bold',
-            color: '#FAD90E',
-          },
-          sceneContainerStyle: {
-            backgroundColor: '#f8f9fa',
-          },
-        }}
-      >
-        <Drawer.Screen 
-          name="index" 
-          options={{
-            drawerLabel: 'Home',
-            title: 'Home',
-            headerLeft: ({ onPress }) => (
-              <Pressable onPress={onPress} className="ml-4">
-                <Ionicons name="menu" size={24} color="#FAD90E" />
-              </Pressable>
-            ),
-          }} 
-        />
-        <Drawer.Screen 
-          name="create-enquiry" 
-          options={{
-            drawerLabel: 'Create Sales Order',
-            title: 'Create Sales Order',
-            headerLeft: ({ onPress }) => (
-              <Pressable onPress={onPress} className="ml-4">
-                <Ionicons name="menu" size={24} color="#FAD90E" />
-              </Pressable>
-            ),
-          }} 
-        />
-        <Drawer.Screen 
-          name="confirmed-orders" 
-          options={{
-            drawerLabel: 'Orders Tracker',
-            title: 'Orders Tracker',
-            headerLeft: ({ onPress }) => (
-              <Pressable onPress={onPress} className="ml-4">
-                <Ionicons name="menu" size={24} color="#FAD90E" />
-              </Pressable>
-            ),
-          }} 
-        />
-      </Drawer>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+            <Slot />
+        </AuthProvider>
+      </QueryClientProvider>
     </GestureHandlerRootView>
   );
 }

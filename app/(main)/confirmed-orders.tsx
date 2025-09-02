@@ -1,4 +1,4 @@
-import "../global.css";
+import "../../global.css";
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -11,7 +11,7 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { enquiryAPI } from '../services/api';
+import { enquiryAPI } from '@/services/api';
 
 const StatusBadge = ({ status }: { status: string }) => {
   let bgColor = 'bg-gray-500';
@@ -137,14 +137,14 @@ export default function ConfirmedOrders() {
 
   return (
     <View className="flex-1 bg-gray-50">
-      <View className="bg-primary-950 px-6 py-6">
+      {/* <View className="bg-primary-950 px-6 py-6">
         <View className="flex-row items-center justify-center">
           <Ionicons name="list" size={28} color="#FAD90E" />
           <Text className="text-secondary-DEFAULT text-xl font-bold ml-3">
             Orders Tracker
           </Text>
         </View>
-      </View>
+      </View> */}
 
       <View className="p-6">
         {/* Search Bar */}
