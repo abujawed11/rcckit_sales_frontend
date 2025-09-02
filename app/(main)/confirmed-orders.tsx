@@ -65,12 +65,25 @@ const PaymentBadge = ({ paymentReceived, percentage }: { paymentReceived: string
   );
 };
 
+type Order = {
+  id: string;
+  project_id?: string;
+  client_name?: string;
+  production_status?: string;
+  po_date_str?: string;
+  delivery_date_str?: string;
+  total_kits?: string;
+  payment_received?: string;
+  payment_percentage?: string;
+  partial_delivery_allowed?: string;
+};
+
 export default function ConfirmedOrders() {
-  const [orders, setOrders] = useState([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [filteredOrders, setFilteredOrders] = useState([]);
+  const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
 
   useEffect(() => {
     fetchOrders();
@@ -137,14 +150,6 @@ export default function ConfirmedOrders() {
 
   return (
     <View className="flex-1 bg-gray-50">
-      {/* <View className="bg-primary-950 px-6 py-6">
-        <View className="flex-row items-center justify-center">
-          <Ionicons name="list" size={28} color="#FAD90E" />
-          <Text className="text-secondary-DEFAULT text-xl font-bold ml-3">
-            Orders Tracker
-          </Text>
-        </View>
-      </View> */}
 
       <View className="p-6">
         {/* Search Bar */}
