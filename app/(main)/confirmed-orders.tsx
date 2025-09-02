@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { Ionicons } from '@expo/vector-icons';
-import { enquiryAPI, orderAPI, kitAPI, getApiUrl, API_CONFIG } from '@/services/api';
+import { orderAPI, enquiryAPI, kitAPI, getApiUrl, API_CONFIG } from '@/services/api';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -30,7 +30,7 @@ const StatusBadge = ({ status }: { status: string }) => {
       bgColor = 'bg-green-500';
       break;
     case 'in production':
-      bgColor = 'bg-secondary-DEFAULT';
+      bgColor = 'bg-secondary';
       textColor = 'text-primary-950';
       break;
     case 'pending':
@@ -56,7 +56,7 @@ const PaymentBadge = ({ paymentReceived, percentage }: { paymentReceived: string
       text = 'Paid';
       break;
     case 'partial':
-      bgColor = 'bg-secondary-DEFAULT';
+      bgColor = 'bg-secondary';
       textColor = 'text-primary-950';
       text = `${percentage}% Paid`;
       break;
@@ -163,12 +163,48 @@ export default function ConfirmedOrders() {
 
   const fetchOrders = async () => {
     try {
-      const data = await enquiryAPI.getAll();
-      setOrders(data);
-      setFilteredOrders(data);
+      // Try to get confirmed orders from different API endpoints
+      let data;
+      try {
+        // First try to get user orders
+        data = await orderAPI.getUserOrders();
+        // console.log('Fetched from getUserOrders:', data);
+      } catch (userOrdersError) {
+        // console.log('getUserOrders failed, trying customer orders:', userOrdersError);
+        try {
+          // Try to get customer orders
+          data = await orderAPI.getCustomerOrders();
+          // console.log('Fetched from getCustomerOrders:', data);
+        } catch (customerOrdersError) {
+          // console.log('getCustomerOrders failed, trying all orders:', customerOrdersError);
+          try {
+            // Try to get all orders
+            data = await orderAPI.getAll();
+            // console.log('Fetched from getAll orders:', data);
+          } catch (allOrdersError) {
+            // console.log('getAll orders failed, trying enquiries:', allOrdersError);
+            try {
+              // As fallback, try enquiries (your original working endpoint that was working)
+              data = await enquiryAPI.getAll();
+              // console.log('Fetched from enquiries as fallback:', data);
+            } catch (enquiriesError) {
+              console.error('All API endpoints failed:', enquiriesError);
+              throw enquiriesError;
+            }
+          }
+        }
+      }
+      
+      console.log('Final fetched orders:', data);
+      // console.log('Number of orders:', data?.length);
+      setOrders(data || []);
+      setFilteredOrders(data || []);
     } catch (error) {
       console.error('Error fetching orders:', error);
       Alert.alert('Error', 'Failed to fetch orders. Please try again.');
+      // Set empty arrays on error to prevent crashes
+      setOrders([]);
+      setFilteredOrders([]);
     } finally {
       setLoading(false);
     }
@@ -285,7 +321,7 @@ export default function ConfirmedOrders() {
   return (
     <View className="flex-1 bg-gray-50">
 
-      <View className="p-6">
+      <View className="flex-1 p-6">
         {/* Search Bar */}
         <View className="mb-4">
           <View className="relative">
@@ -312,74 +348,87 @@ export default function ConfirmedOrders() {
           </Text>
         </View>
 
-        {/* Orders Table */}
+        {/* Orders Cards */}
         <ScrollView 
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          className="mb-4"
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          contentContainerStyle={{ paddingBottom: 32 }}
         >
-          <View className="bg-white rounded-xl shadow-md overflow-hidden min-w-[1200px]">
-            {/* Table Header */}
-            <View className="bg-primary-950 flex-row py-4 px-2">
-              <Text className="text-secondary-DEFAULT font-bold text-center w-12">S.N</Text>
-              <Text className="text-secondary-DEFAULT font-bold text-center w-32">Client</Text>
-              <Text className="text-secondary-DEFAULT font-bold text-center w-28">Project ID</Text>
-              <Text className="text-secondary-DEFAULT font-bold text-center w-24">Order Value</Text>
-              <Text className="text-secondary-DEFAULT font-bold text-center w-28">Payment Status</Text>
-              <Text className="text-secondary-DEFAULT font-bold text-center w-32">Production Status</Text>
-              <Text className="text-secondary-DEFAULT font-bold text-center w-32">Dispatch Status</Text>
-              <Text className="text-secondary-DEFAULT font-bold text-center w-28">Production Unit</Text>
-              <Text className="text-secondary-DEFAULT font-bold text-center w-24">PO Date</Text>
-              <Text className="text-secondary-DEFAULT font-bold text-center w-28">Delivery Date</Text>
-              <Text className="text-secondary-DEFAULT font-bold text-center w-20">Kits</Text>
-              <Text className="text-secondary-DEFAULT font-bold text-center w-40">Actions</Text>
-            </View>
+          {filteredOrders.map((order, index) => (
+            <View key={order.id} className="bg-white rounded-xl shadow-lg mb-4 overflow-hidden border-l-4 border-secondary">
+              {/* Card Header */}
+              <View className="bg-primary-950 px-4 py-3 flex-row justify-between items-center">
+                <View className="flex-1">
+                  <Text className="text-secondary text-lg font-bold">
+                    {order.project_id || `Order #${index + 1}`}
+                  </Text>
+                  <Text className="text-gray-300 text-sm">
+                    {order.client_name || 'Unknown Client'}
+                  </Text>
+                </View>
+                <View className="bg-secondary px-3 py-1 rounded-full">
+                  <Text className="text-primary-950 font-bold text-sm">#{index + 1}</Text>
+                </View>
+              </View>
 
-            {/* Table Body */}
-            <ScrollView 
-              showsVerticalScrollIndicator={false}
-              refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-              }
-            >
-              {filteredOrders.map((order, index) => (
-                <View key={order.id} className={`flex-row py-3 px-2 border-b border-gray-200 ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}>
-                  {/* S.N */}
-                  <Text className="text-primary-950 text-center w-12 text-sm font-medium">{index + 1}</Text>
-                  
-                  {/* Client */}
-                  <Text className="text-primary-950 text-center w-32 text-sm font-medium" numberOfLines={2}>
-                    {order.client_name || 'N/A'}
-                  </Text>
-                  
-                  {/* Project ID */}
-                  <Text className="text-primary-950 text-center w-28 text-sm font-bold" numberOfLines={1}>
-                    {order.project_id || 'N/A'}
-                  </Text>
-                  
-                  {/* Order Value */}
-                  <Text className="text-primary-950 text-center w-24 text-sm font-medium">
-                    {order.order_value || 'N/A'}
-                  </Text>
-                  
-                  {/* Payment Status */}
-                  <View className="w-28 items-center">
+              {/* Card Content */}
+              <View className="p-4 space-y-4">
+                {/* Order Info Row */}
+                <View className="flex-row justify-between">
+                  <View className="flex-1 mr-2">
+                    <Text className="text-gray-600 text-xs mb-1">Order Value</Text>
+                    <Text className="text-primary-950 font-bold text-sm">
+                      {order.order_value || 'N/A'}
+                    </Text>
+                  </View>
+                  <View className="flex-1 mr-2">
+                    <Text className="text-gray-600 text-xs mb-1">Total Kits</Text>
+                    <Text className="text-primary-950 font-bold text-sm">
+                      {order.total_kits || '0'}
+                    </Text>
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-gray-600 text-xs mb-1">Payment Status</Text>
                     <PaymentBadge 
                       paymentReceived={order.payment_received || 'No'}
                       percentage={order.payment_percentage || '0'}
                     />
                   </View>
+                </View>
+
+                {/* Dates Row */}
+                <View className="flex-row justify-between">
+                  <View className="flex-1 mr-2">
+                    <Text className="text-gray-600 text-xs mb-1">PO Date</Text>
+                    <Text className="text-primary-950 text-sm">
+                      {order.po_date_str || 'Not set'}
+                    </Text>
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-gray-600 text-xs mb-1">Delivery Date</Text>
+                    <Text className="text-primary-950 text-sm">
+                      {order.delivery_date_str || 'Not set'}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Status Management Section */}
+                <View className="bg-gray-50 rounded-lg p-3 space-y-3">
+                  <Text className="text-primary-950 font-bold text-sm mb-2">Status Management</Text>
                   
                   {/* Production Status */}
-                  <View className="w-32 px-1">
-                    <View className="border border-gray-300 rounded-md">
+                  <View>
+                    <Text className="text-gray-600 text-xs mb-2">Production Status</Text>
+                    <View className="border border-gray-300 rounded-md bg-white">
                       <Picker
                         selectedValue={order.production_status || ''}
                         onValueChange={(value) => handleStatusUpdate(order.id, 'production_status', value)}
-                        style={{ height: 35, color: '#0a0a0a' }}
+                        style={{ height: 45, color: '#0a0a0a' }}
                         dropdownIconColor="#FAD90E"
                       >
-                        <Picker.Item label="Select Status" value="" />
+                        <Picker.Item label="Select Production Status" value="" />
                         <Picker.Item label="Pending" value="Pending" />
                         <Picker.Item label="In Production" value="In Production" />
                         <Picker.Item label="Quality Check" value="Quality Check" />
@@ -390,15 +439,16 @@ export default function ConfirmedOrders() {
                   </View>
                   
                   {/* Dispatch Status */}
-                  <View className="w-32 px-1">
-                    <View className="border border-gray-300 rounded-md">
+                  <View>
+                    <Text className="text-gray-600 text-xs mb-2">Dispatch Status</Text>
+                    <View className="border border-gray-300 rounded-md bg-white">
                       <Picker
                         selectedValue={order.dispatch_status || ''}
                         onValueChange={(value) => handleStatusUpdate(order.id, 'dispatch_status', value)}
-                        style={{ height: 35, color: '#0a0a0a' }}
+                        style={{ height: 45, color: '#0a0a0a' }}
                         dropdownIconColor="#FAD90E"
                       >
-                        <Picker.Item label="Select Status" value="" />
+                        <Picker.Item label="Select Dispatch Status" value="" />
                         <Picker.Item label="Not Dispatched" value="Not Dispatched" />
                         <Picker.Item label="Partially Dispatched" value="Partially Dispatched" />
                         <Picker.Item label="Dispatched" value="Dispatched" />
@@ -408,15 +458,16 @@ export default function ConfirmedOrders() {
                   </View>
                   
                   {/* Production Unit */}
-                  <View className="w-28 px-1">
-                    <View className="border border-gray-300 rounded-md">
+                  <View>
+                    <Text className="text-gray-600 text-xs mb-2">Production Unit</Text>
+                    <View className="border border-gray-300 rounded-md bg-white">
                       <Picker
                         selectedValue={order.production_unit || ''}
                         onValueChange={(value) => handleStatusUpdate(order.id, 'production_unit', value)}
-                        style={{ height: 35, color: '#0a0a0a' }}
+                        style={{ height: 45, color: '#0a0a0a' }}
                         dropdownIconColor="#FAD90E"
                       >
-                        <Picker.Item label="Select Unit" value="" />
+                        <Picker.Item label="Select Production Unit" value="" />
                         <Picker.Item label="Unit 1" value="Unit 1" />
                         <Picker.Item label="Unit 2" value="Unit 2" />
                         <Picker.Item label="Unit 3" value="Unit 3" />
@@ -424,75 +475,74 @@ export default function ConfirmedOrders() {
                       </Picker>
                     </View>
                   </View>
+                </View>
+
+                {/* Action Buttons Section */}
+                <View className="space-y-3">
+                  <Text className="text-primary-950 font-bold text-sm">Quick Actions</Text>
                   
-                  {/* PO Date */}
-                  <Text className="text-primary-950 text-center w-24 text-xs" numberOfLines={2}>
-                    {order.po_date_str || 'N/A'}
-                  </Text>
-                  
-                  {/* Delivery Date */}
-                  <Text className="text-primary-950 text-center w-28 text-xs" numberOfLines={2}>
-                    {order.delivery_date_str || 'N/A'}
-                  </Text>
-                  
-                  {/* Kits */}
-                  <Text className="text-primary-950 text-center w-20 text-sm font-bold">
-                    {order.total_kits || '0'}
-                  </Text>
-                  
-                  {/* Actions */}
-                  <View className="w-40 flex-row justify-center flex-wrap gap-1">
+                  {/* Primary Actions Row */}
+                  <View className="flex-row space-x-2">
                     <Pressable
                       onPress={() => openModal(order, 'address')}
-                      className="bg-secondary-DEFAULT px-2 py-1 rounded-md m-0.5"
+                      className="flex-1 bg-secondary py-3 rounded-lg flex-row items-center justify-center"
                     >
-                      <Text className="text-primary-950 text-xs font-bold">Address</Text>
+                      <Ionicons name="location" size={18} color="#0a0a0a" />
+                      <Text className="text-primary-950 font-bold ml-2">Address</Text>
                     </Pressable>
                     
                     <Pressable
                       onPress={() => openModal(order, 'kits')}
-                      className="bg-blue-500 px-2 py-1 rounded-md m-0.5"
+                      className="flex-1 bg-blue-500 py-3 rounded-lg flex-row items-center justify-center"
                     >
-                      <Text className="text-white text-xs font-bold">Kits</Text>
+                      <Ionicons name="cube" size={18} color="white" />
+                      <Text className="text-white font-bold ml-2">Kits</Text>
                     </Pressable>
-                    
+                  </View>
+                  
+                  {/* Secondary Actions Row */}
+                  <View className="flex-row space-x-2">
                     <Pressable
                       onPress={() => openModal(order, 'dispatch_lots')}
-                      className="bg-green-500 px-2 py-1 rounded-md m-0.5"
+                      className="flex-1 bg-green-500 py-3 rounded-lg flex-row items-center justify-center"
                     >
-                      <Text className="text-white text-xs font-bold">Dispatch</Text>
+                      <Ionicons name="send" size={18} color="white" />
+                      <Text className="text-white font-bold ml-2">Dispatch</Text>
                     </Pressable>
                     
                     <Pressable
                       onPress={() => openModal(order, 'qc_docs')}
-                      className="bg-purple-500 px-2 py-1 rounded-md m-0.5"
+                      className="flex-1 bg-purple-500 py-3 rounded-lg flex-row items-center justify-center"
                     >
-                      <Text className="text-white text-xs font-bold">QC Docs</Text>
-                    </Pressable>
-                    
-                    <Pressable
-                      onPress={() => openModal(order, 'dispatch_docs')}
-                      className="bg-orange-500 px-2 py-1 rounded-md m-0.5"
-                    >
-                      <Text className="text-white text-xs font-bold">Dispatch Docs</Text>
+                      <Ionicons name="shield-checkmark" size={18} color="white" />
+                      <Text className="text-white font-bold ml-2">QC Docs</Text>
                     </Pressable>
                   </View>
+                  
+                  {/* Document Action */}
+                  <Pressable
+                    onPress={() => openModal(order, 'dispatch_docs')}
+                    className="bg-orange-500 py-3 rounded-lg flex-row items-center justify-center"
+                  >
+                    <Ionicons name="document-text" size={18} color="white" />
+                    <Text className="text-white font-bold ml-2">Dispatch Documents</Text>
+                  </Pressable>
                 </View>
-              ))}
+              </View>
+            </View>
+          ))}
 
-              {filteredOrders.length === 0 && (
-                <View className="py-12 items-center">
-                  <Ionicons name="document-outline" size={48} color="#9CA3AF" />
-                  <Text className="text-gray-500 text-lg mt-4 font-semibold">
-                    No orders found
-                  </Text>
-                  <Text className="text-gray-400 text-center mt-2">
-                    {searchQuery ? 'Try adjusting your search criteria' : 'No confirmed orders available'}
-                  </Text>
-                </View>
-              )}
-            </ScrollView>
-          </View>
+          {filteredOrders.length === 0 && (
+            <View className="bg-white rounded-xl p-8 items-center mx-2 mt-8">
+              <Ionicons name="document-outline" size={64} color="#9CA3AF" />
+              <Text className="text-gray-500 text-xl font-bold mt-4">
+                No orders found
+              </Text>
+              <Text className="text-gray-400 text-center mt-2 text-base">
+                {searchQuery ? 'Try adjusting your search criteria' : 'No confirmed orders available'}
+              </Text>
+            </View>
+          )}
         </ScrollView>
       </View>
 
@@ -507,7 +557,7 @@ export default function ConfirmedOrders() {
           <View className="flex-1">
             {/* Modal Header */}
             <View className="bg-primary-950 px-4 py-4 flex-row justify-between items-center">
-              <Text className="text-secondary-DEFAULT text-xl font-bold">
+              <Text className="text-secondary text-xl font-bold">
                 {modalType === 'address' && 'Address Details'}
                 {modalType === 'kits' && 'Kit Specifications'}
                 {modalType === 'dispatch_lots' && 'Dispatch Lots'}
@@ -651,7 +701,7 @@ export default function ConfirmedOrders() {
                     <Text className="text-primary-950 text-lg font-bold">QC Documents</Text>
                     <Pressable
                       onPress={() => handleFileUpload('qc')}
-                      className="bg-secondary-DEFAULT px-4 py-2 rounded-lg flex-row items-center"
+                      className="bg-secondary px-4 py-2 rounded-lg flex-row items-center"
                       disabled={uploadingFile}
                     >
                       {uploadingFile ? (
@@ -698,7 +748,7 @@ export default function ConfirmedOrders() {
                     <Text className="text-primary-950 text-lg font-bold">Dispatch Documents</Text>
                     <Pressable
                       onPress={() => handleFileUpload('dispatch')}
-                      className="bg-secondary-DEFAULT px-4 py-2 rounded-lg flex-row items-center"
+                      className="bg-secondary px-4 py-2 rounded-lg flex-row items-center"
                       disabled={uploadingFile}
                     >
                       {uploadingFile ? (
