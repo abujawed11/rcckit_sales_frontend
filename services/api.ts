@@ -26,6 +26,11 @@ export const API_CONFIG = {
     CREATE_ORDER: 'create-order/',
     USER_ORDERS: 'orders/user/',
     CUSTOMER_ORDERS: 'orders/customer/',
+    // Additional endpoints aligned with web app
+    KIT_DISPATCH: 'kitdispatch/',
+    DISPATCH: 'dispatch/',
+    QC_DOCS: 'qcdocs/',
+    DISPATCH_DOCS: 'dispatchdocs/',
   }
 };
 
@@ -134,6 +139,10 @@ export const enquiryAPI = {
     const response = await api.get(API_CONFIG.ENDPOINTS.ENQUIRY);
     return response.data;
   },
+  getBySr: async (sr: string) => {
+    const response = await api.get(`${API_CONFIG.ENDPOINTS.ENQUIRY}?sr=${sr}`);
+    return response.data;
+  },
 
   getById: async (id: string) => {
     const response = await api.get(`${API_CONFIG.ENDPOINTS.ENQUIRY}${id}/`);
@@ -147,6 +156,10 @@ export const enquiryAPI = {
 
   update: async (id: string, enquiryData: any) => {
     const response = await api.put(`${API_CONFIG.ENDPOINTS.ENQUIRY}${id}/`, enquiryData);
+    return response.data;
+  },
+  patchBySr: async (sr: string, payload: any) => {
+    const response = await api.patch(`${API_CONFIG.ENDPOINTS.ENQUIRY}${sr}/`, payload);
     return response.data;
   },
 
@@ -165,6 +178,58 @@ export const kitAPI = {
 
   getById: async (kitId: string) => {
     const response = await api.get(`kit/${kitId}/`);
+    return response.data;
+  },
+};
+
+// Kit Dispatch (per SR) API
+export const kitDispatchAPI = {
+  getBySr: async (sr: string) => {
+    const response = await api.get(`${API_CONFIG.ENDPOINTS.KIT_DISPATCH}?sr=${sr}`);
+    return response.data;
+  },
+  create: async (payload: any) => {
+    const response = await api.post(API_CONFIG.ENDPOINTS.KIT_DISPATCH, payload);
+    return response.data;
+  },
+};
+
+// Dispatch lots API
+export const dispatchAPI = {
+  getBySr: async (sr: string) => {
+    const response = await api.get(`${API_CONFIG.ENDPOINTS.DISPATCH}?sr=${sr}`);
+    return response.data;
+  },
+  create: async (payload: any) => {
+    const response = await api.post(API_CONFIG.ENDPOINTS.DISPATCH, payload);
+    return response.data;
+  },
+  patch: async (id: string, payload: any) => {
+    const response = await api.patch(`${API_CONFIG.ENDPOINTS.DISPATCH}${id}/`, payload);
+    return response.data;
+  },
+};
+
+// QC documents API
+export const qcDocsAPI = {
+  getBySr: async (sr: string) => {
+    const response = await api.get(`${API_CONFIG.ENDPOINTS.QC_DOCS}?sr=${sr}`);
+    return response.data;
+  },
+  patch: async (id: string, payload: any) => {
+    const response = await api.patch(`${API_CONFIG.ENDPOINTS.QC_DOCS}${id}/`, payload);
+    return response.data;
+  },
+};
+
+// Dispatch documents API
+export const dispatchDocsAPI = {
+  getBySr: async (sr: string) => {
+    const response = await api.get(`${API_CONFIG.ENDPOINTS.DISPATCH_DOCS}?sr=${sr}`);
+    return response.data;
+  },
+  patch: async (id: string, payload: any) => {
+    const response = await api.patch(`${API_CONFIG.ENDPOINTS.DISPATCH_DOCS}${id}/`, payload);
     return response.data;
   },
 };
