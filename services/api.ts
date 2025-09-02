@@ -195,6 +195,11 @@ export const orderAPI = {
     const response = await api.post(API_CONFIG.ENDPOINTS.CREATE_ORDER, orderData);
     return response.data;
   },
+
+  update: async (orderId: string, orderData: any) => {
+    const response = await api.put(`${API_CONFIG.ENDPOINTS.ORDERS}${orderId}/`, orderData);
+    return response.data;
+  },
 };
 
 // Client API functions
