@@ -520,7 +520,7 @@ export default function ConfirmedOrders() {
                       <Picker
                         selectedValue={order.production_status || ''}
                         onValueChange={(value) => handleStatusUpdate(order.id, 'production_status', value, order)}
-                        style={{ height: 45, color: '#0a0a0a' }}
+                        style={{ height: 50, color: '#0a0a0a' }}
                         dropdownIconColor="#FAD90E"
                       >
                         <Picker.Item label="Select Production Status" value="" />
@@ -538,7 +538,7 @@ export default function ConfirmedOrders() {
                       <Picker
                         selectedValue={order.dispatch_status || ''}
                         onValueChange={(value) => handleStatusUpdate(order.id, 'dispatch_status', value, order)}
-                        style={{ height: 45, color: '#0a0a0a' }}
+                        style={{ height: 50, color: '#0a0a0a' }}
                         dropdownIconColor="#FAD90E"
                       >
                         <Picker.Item label="Select Dispatch Status" value="" />
@@ -555,7 +555,7 @@ export default function ConfirmedOrders() {
                       <Picker
                         selectedValue={order.production_unit || ''}
                         onValueChange={(value) => handleStatusUpdate(order.id, 'production_unit', value, order)}
-                        style={{ height: 45, color: '#0a0a0a' }}
+                        style={{ height: 50, color: '#0a0a0a' }}
                         dropdownIconColor="#FAD90E"
                       >
                         <Picker.Item label="Select Production Unit" value="" />
