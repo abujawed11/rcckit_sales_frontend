@@ -44,13 +44,17 @@ export default function OrderDispatchLots() {
 
   useEffect(() => {
     loadDispatchLots();
-  }, []);
+  }, [order.sr]);
 
   const loadDispatchLots = async () => {
     try {
       if (order.sr) {
+        console.log('Loading dispatch lots for SR:', order.sr);
         const lots = await dispatchAPI.getBySr(order.sr);
-        setDispatchLots(lots || []);
+        console.log('Received lots:', lots);
+        // Filter out deleted lots immediately when loading
+        const activeLots = (lots || []).filter((lot: any) => lot.deleted !== 'Yes');
+        setDispatchLots(activeLots);
       }
     } catch (e) {
       console.log('Dispatch lots fetch error:', e);
@@ -107,6 +111,21 @@ export default function OrderDispatchLots() {
             <Text className="text-primary-950 text-lg font-bold">
               Dispatch Lots for {order.project_id}
             </Text>
+            <Text className="text-gray-600 text-sm mb-2">
+              SR: {order.sr} | Client: {order.client_name}
+            </Text>
+            
+            {/* Total Percentage Summary */}
+            {dispatchLots && dispatchLots.length > 0 && (
+              <View className="bg-blue-50 rounded-lg p-3 mb-2">
+                <Text className="text-blue-800 font-semibold text-sm">
+                  Total Dispatched: {dispatchLots.reduce((total: number, lot: any) => total + (Number(lot.percentage) || 0), 0)}%
+                </Text>
+                <Text className="text-blue-600 text-xs mt-1">
+                  Remaining: {100 - dispatchLots.reduce((total: number, lot: any) => total + (Number(lot.percentage) || 0), 0)}%
+                </Text>
+              </View>
+            )}
 
             {/* Existing Lots */}
             {dispatchLots && dispatchLots.length > 0 ? (
@@ -114,24 +133,26 @@ export default function OrderDispatchLots() {
                 <View key={lot.id || idx} className="bg-white rounded-xl p-4 shadow-md">
                   <View className="flex-row justify-between">
                     <Text className="text-gray-700">Lot #{lot.lot_number || idx + 1}</Text>
-                    <Text className="text-gray-700">{lot.percentage}%</Text>
+                    <Text className="text-blue-600 font-semibold">{lot.percentage}%</Text>
                   </View>
                   <View className="flex-row justify-between mt-1">
-                    <Text className="text-gray-600">Date:</Text>
-                    <Text className="text-primary-950">{lot.lot_date_str || lot.delivery_date_str || '-'}</Text>
+                    <Text className="text-gray-600">Dispatch Date:</Text>
+                    <Text className="text-primary-950">{lot.lot_date_str || '-'}</Text>
                   </View>
-                  {lot.deleted === 'Yes' ? (
-                    <Text className="text-red-600 mt-2">Deleted</Text>
-                  ) : (
-                    <View className="flex-row justify-end mt-3">
-                      <Pressable
-                        onPress={() => handleDeleteLot(lot.id)}
-                        className="bg-red-500 px-3 py-2 rounded-lg"
-                      >
-                        <Text className="text-white font-semibold">Delete</Text>
-                      </Pressable>
+                  {lot.delivery_date_str && (
+                    <View className="flex-row justify-between mt-1">
+                      <Text className="text-gray-600">Delivery Date:</Text>
+                      <Text className="text-green-600">{lot.delivery_date_str}</Text>
                     </View>
                   )}
+                  <View className="flex-row justify-end mt-3">
+                    <Pressable
+                      onPress={() => handleDeleteLot(lot.id)}
+                      className="bg-red-500 px-3 py-2 rounded-lg"
+                    >
+                      <Text className="text-white font-semibold">Delete</Text>
+                    </Pressable>
+                  </View>
                 </View>
               ))
             ) : (
