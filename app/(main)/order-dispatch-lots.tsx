@@ -8,9 +8,10 @@ import {
   Pressable,
   TextInput,
   Alert,
+  BackHandler,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { dispatchAPI } from '@/services/api';
 
 type Order = {
@@ -23,11 +24,23 @@ type Order = {
 export default function OrderDispatchLots() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  
+
   const order: Order = params.order ? JSON.parse(params.order as string) : {};
-  
+
   const [dispatchLots, setDispatchLots] = useState<any[]>([]);
   const [newDispatchPct, setNewDispatchPct] = useState<string>('');
+
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        router.replace("/(main)/confirmed-orders");
+        return true;
+      };
+      const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+      return () => subscription.remove();
+    }, [])
+  );
 
   useEffect(() => {
     loadDispatchLots();
@@ -57,25 +70,25 @@ export default function OrderDispatchLots() {
   const handleAddLot = async () => {
     const sr = order.sr;
     if (!sr) return;
-    
+
     const pct = Number(newDispatchPct);
-    if (!pct || pct < 1 || pct > 100) { 
-      Alert.alert('Invalid', 'Enter 1-100'); 
-      return; 
+    if (!pct || pct < 1 || pct > 100) {
+      Alert.alert('Invalid', 'Enter 1-100');
+      return;
     }
-    
+
     const nonDeleted = (dispatchLots || []).filter((l: any) => l.deleted !== 'Yes');
     const total = nonDeleted.reduce((s: number, l: any) => s + Number(l.percentage || 0), 0);
-    if (total + pct > 100) { 
-      Alert.alert('Invalid', `Total cannot exceed 100%. Current: ${total}%`); 
-      return; 
+    if (total + pct > 100) {
+      Alert.alert('Invalid', `Total cannot exceed 100%. Current: ${total}%`);
+      return;
     }
-    
+
     const lot_number = (dispatchLots?.length || 0) + 1;
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, '0');
-    const lot_date_str = `${pad(now.getDate())}/${pad(now.getMonth()+1)}/${String(now.getFullYear()).slice(-2)} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
-    
+    const lot_date_str = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${String(now.getFullYear()).slice(-2)} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
     try {
       await dispatchAPI.create({ sr, lot_number, percentage: pct, deleted: 'No', lot_date_str });
       setNewDispatchPct('');
@@ -89,15 +102,6 @@ export default function OrderDispatchLots() {
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
       <View className="flex-1">
-        {/* Header */}
-        <View className="bg-primary-950 px-4 py-4 flex-row justify-between items-center">
-          <Pressable onPress={() => router.navigate('/(main)/confirmed-orders')}>
-            <Ionicons name="arrow-back" size={24} color="#FAD90E" />
-          </Pressable>
-          <Text className="text-secondary text-xl font-bold">Dispatch Lots</Text>
-          <View style={{ width: 24 }} />
-        </View>
-
         <ScrollView className="flex-1 p-4">
           <View className="space-y-4">
             <Text className="text-primary-950 text-lg font-bold">

@@ -83,13 +83,13 @@ export default function OrderKits() {
       const qty = Number(qtyRaw) || 0;
       if (name && qty > 0) {
         kits.push({ name, qty });
-        console.log(`Found kit ${i}:`, { name, qty, originalNameField: `kit${i}_name`, originalQtyField: `kit${i}_qty` });
+        //console.log(`Found kit ${i}:`, { name, qty, originalNameField: `kit${i}_name`, originalQtyField: `kit${i}_qty` });
       }
     }
 
     // If no kits found with standard pattern, try to find in kits array or different structure
     if (kits.length === 0) {
-      console.log('No kits found with standard pattern, checking for alternative structures...');
+      //console.log('No kits found with standard pattern, checking for alternative structures...');
 
       // Check if there's a kits array
       if (orderData.kits && Array.isArray(orderData.kits)) {
@@ -98,14 +98,14 @@ export default function OrderKits() {
           const qty = Number(kit.quantity || kit.qty || kit.amount) || 0;
           if (name && qty > 0) {
             kits.push({ name, qty });
-            console.log(`Found kit from array[${index}]:`, { name, qty });
+            //console.log(`Found kit from array[${index}]:`, { name, qty });
           }
         });
       }
 
       // Check for total_kits field and try to extract kit info differently
       if (kits.length === 0 && orderData.total_kits) {
-        console.log('Found total_kits but no individual kit details:', orderData.total_kits);
+        //console.log('Found total_kits but no individual kit details:', orderData.total_kits);
         // Create a generic kit entry
         kits.push({
           name: `Total Kits (${orderData.client_name || 'Order'})`,
@@ -126,31 +126,31 @@ export default function OrderKits() {
   const loadKitsData = async () => {
     try {
       // First, let's see what we actually received
-      console.log('Raw params:', params);
-      console.log('params.orderData type:', typeof params.orderData);
-      console.log('params.order type:', typeof params.order);
+      //console.log('Raw params:', params);
+      //console.log('params.orderData type:', typeof params.orderData);
+      //console.log('params.order type:', typeof params.order);
 
       const orderData = JSON.parse(params.orderData as string || '{}');
 
       // Debug: Log the order data to see what fields are available
-      console.log('=== ORDER KITS DEBUG ===');
-      console.log('Full order data:', orderData);
-      console.log('Order data keys:', Object.keys(orderData));
-      console.log('Kit-related fields:', Object.keys(orderData).filter(key =>
-        key.toLowerCase().includes('kit') ||
-        key.toLowerCase().includes('name') ||
-        key.toLowerCase().includes('qty') ||
-        key.toLowerCase().includes('quantity')
-      ));
+      // //console.log('=== ORDER KITS DEBUG ===');
+      // //console.log('Full order data:', orderData);
+      // //console.log('Order data keys:', Object.keys(orderData));
+      // console.log('Kit-related fields:', Object.keys(orderData).filter(key =>
+      //   key.toLowerCase().includes('kit') ||
+      //   key.toLowerCase().includes('name') ||
+      //   key.toLowerCase().includes('qty') ||
+      //   key.toLowerCase().includes('quantity')
+      // ));
 
       // Also check for total_kits
       if (orderData.total_kits) {
-        console.log('Found total_kits:', orderData.total_kits);
+        //console.log('Found total_kits:', orderData.total_kits);
       }
 
       const kits = buildKitsFromOrder(orderData);
-      console.log('Final built kits:', kits);
-      console.log('=== END DEBUG ===');
+      //console.log('Final built kits:', kits);
+      //console.log('=== END DEBUG ===');
 
       let lots: any[] = [];
       let dispatchedByKit: number[] = kits.map(() => 0);
@@ -173,7 +173,7 @@ export default function OrderKits() {
       setKitsLots(lots || []);
       setLotInputs(summary.map(() => 0));
     } catch (e) {
-      console.log('Kits data fetch error:', e);
+      //console.log('Kits data fetch error:', e);
     }
   };
 
@@ -279,13 +279,19 @@ export default function OrderKits() {
               {kitsLots?.length > 0 && (
                 <View className="bg-white rounded-xl p-4 shadow-md">
                   <Text className="text-primary-950 font-bold text-base mb-2">Previous Lots</Text>
-                  {kitsLots.map((lot, idx) => (
-                    <View key={idx} className="flex-row justify-between py-1 border-b border-gray-200">
-                      <Text className="text-gray-700">Lot {idx + 1}</Text>
-                      <Text className="text-gray-700">Sum: {lot.sum || 0}</Text>
-                      <Text className="text-gray-700">Date: {lot.delivery_date || lot.delivery_date_str || '-'}</Text>
-                    </View>
-                  ))}
+                  {kitsLots.map((lot, idx) => {
+                    const sum = lot.sum || 0;
+                    const totalKits = kitsSummary.reduce((total, kit) => total + kit.qty, 0);
+                    const percentage = totalKits > 0 ? ((sum / totalKits) * 100).toFixed(2) : '0.00';
+                    
+                    return (
+                      <View key={idx} className="flex-row justify-between py-1 border-b border-gray-200">
+                        <Text className="text-gray-700">Lot {idx + 1}</Text>
+                        <Text className="text-gray-700">Sum: {sum} ({percentage}%)</Text>
+                        <Text className="text-gray-700">Date: {lot.delivery_date || lot.delivery_date_str || '-'}</Text>
+                      </View>
+                    );
+                  })}
                 </View>
               )}
 
