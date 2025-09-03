@@ -70,6 +70,20 @@ export default function MainLayout() {
           title: 'Orders Tracker',
         }}
       />
+      <Drawer.Screen
+        name="order-kits"
+        options={{
+          drawerLabel: 'Kits Specifications',
+          title: 'Kits Specifications',
+        }}
+      />
+      <Drawer.Screen
+        name="order-address"
+        options={{
+          drawerLabel: 'Address Details',
+          title: 'Address Details',
+        }}
+      />
     </Drawer>
   );
 }

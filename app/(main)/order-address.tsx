@@ -5,22 +5,42 @@ import {
   Text,
   ScrollView,
   SafeAreaView,
+  BackHandler,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Order } from '@/components/order/OrderTypes';
 import { PageHeader } from '@/components/order/PageHeader';
 
 export default function OrderAddress() {
+
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        router.replace("/(main)/confirmed-orders");
+        return true;
+      };
+      const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+      return () => subscription.remove();
+    }, [])
+  );
+
+
+
   const router = useRouter();
   const params = useLocalSearchParams();
-  
+
   // Parse order data from params
   const order: Order = params.order ? JSON.parse(params.order as string) : {};
+
+  // Debug: Log the order data to see what fields are available
+  console.log('Order data:', order);
+  console.log('All order keys:', Object.keys(order));
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
       <View className="flex-1">
-        <PageHeader title="Address Details" onBack={() => router.back()} />
+        {/* <PageHeader title="Address Details" onBack={() => router.navigate('/(main)/confirmed-orders')} /> */}
 
         <ScrollView className="flex-1 p-4">
           <View className="space-y-4">
@@ -47,7 +67,11 @@ export default function OrderAddress() {
             <View className="bg-white rounded-xl p-4 shadow-md">
               <Text className="text-primary-950 text-lg font-bold mb-3">Shipping Address</Text>
               <Text className="text-primary-950 leading-6">
-                {order.shipping_address || 'No shipping address provided'}
+                {order.shipping_address ||
+                  (order as any).ship_address ||
+                  (order as any).delivery_address ||
+                  (order as any).address ||
+                  'No shipping address provided'}
               </Text>
             </View>
 
@@ -55,7 +79,11 @@ export default function OrderAddress() {
             <View className="bg-white rounded-xl p-4 shadow-md">
               <Text className="text-primary-950 text-lg font-bold mb-3">Billing Address</Text>
               <Text className="text-primary-950 leading-6">
-                {order.billing_address || 'No billing address provided'}
+                {order.billing_address ||
+                  (order as any).bill_address ||
+                  (order as any).billing_addr ||
+                  (order as any).address ||
+                  'No billing address provided'}
               </Text>
             </View>
 

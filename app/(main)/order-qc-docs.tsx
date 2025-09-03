@@ -135,7 +135,7 @@ export default function OrderQCDocs() {
       <View className="flex-1">
         {/* Header */}
         <View className="bg-primary-950 px-4 py-4 flex-row justify-between items-center">
-          <Pressable onPress={() => router.back()}>
+          <Pressable onPress={() => router.navigate('/(main)/confirmed-orders')}>
             <Ionicons name="arrow-back" size={24} color="#FAD90E" />
           </Pressable>
           <Text className="text-secondary text-xl font-bold">QC Documents</Text>
