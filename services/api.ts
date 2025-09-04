@@ -135,8 +135,23 @@ export const authAPI = {
 
 // Enquiry API functions
 export const enquiryAPI = {
-  getAll: async () => {
-    const response = await api.get(API_CONFIG.ENDPOINTS.ENQUIRY);
+  getAll: async (params?: {
+    page?: number;
+    page_size?: number;
+    ordering?: string;
+    client_name?: string;
+    project_id?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.page_size) queryParams.append('page_size', params.page_size.toString());
+    if (params?.ordering) queryParams.append('ordering', params.ordering);
+    if (params?.client_name) queryParams.append('client_name', params.client_name);
+    if (params?.project_id) queryParams.append('project_id', params.project_id);
+    
+    const url = `${API_CONFIG.ENDPOINTS.ENQUIRY}?${queryParams.toString()}`;
+    const response = await api.get(url);
     return response.data;
   },
   getBySr: async (sr: string) => {

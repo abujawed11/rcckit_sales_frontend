@@ -93,7 +93,20 @@ export default function CreateEnquiry() {
 
   const fetchExistingClients = async () => {
     try {
-      const enquiries = await enquiryAPI.getAll();
+      const response = await enquiryAPI.getAll({ page_size: 1000 }); // Get more records for client names
+      
+      // Handle paginated response - check if response has 'results' field
+      let enquiries;
+      if (response && response.results && Array.isArray(response.results)) {
+        enquiries = response.results;
+      } else if (Array.isArray(response)) {
+        // Fallback for non-paginated response
+        enquiries = response;
+      } else {
+        console.warn('Unexpected API response format in CreateEnquiry:', response);
+        enquiries = [];
+      }
+      
       const uniqueClients = enquiries
         .map((enquiry: any) => enquiry.client_name)
         .filter((name: string) => name && name.trim() !== '')
@@ -102,6 +115,7 @@ export default function CreateEnquiry() {
       setExistingClients(uniqueClients);
     } catch (error) {
       console.error('Error fetching existing clients:', error);
+      setExistingClients([]);
     }
   };
 

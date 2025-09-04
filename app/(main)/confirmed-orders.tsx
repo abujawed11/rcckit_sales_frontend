@@ -17,14 +17,36 @@ import { orderAPI, enquiryAPI } from '@/services/api';
 import { Order } from '@/components/order/OrderTypes';
 import { StatusBadge, PaymentBadge } from '@/components/order/StatusBadges';
 
+// Utility function to format dates consistently
+const formatDate = (dateString?: string): string => {
+  if (!dateString) return 'Not available';
+  
+  try {
+    const date = new Date(dateString);
+    // Check if date is valid
+    if (isNaN(date.getTime())) return 'Invalid date';
+    
+    return date.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  } catch (error) {
+    return 'Invalid date';
+  }
+};
+
 export default function ConfirmedOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [ordersPerPage] = useState(10);
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
+  const [hasPrevious, setHasPrevious] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -32,71 +54,75 @@ export default function ConfirmedOrders() {
   }, []);
 
   useEffect(() => {
-    let filtered = orders;
-    
-    // Apply search filter
-    if (searchQuery.trim() !== '') {
-      filtered = orders.filter((order: any) => {
-        const clientName = order.client_name?.toLowerCase() || '';
-        const projectId = order.project_id?.toLowerCase() || '';
-        const search = searchQuery.toLowerCase();
-        
-        return clientName.includes(search) || projectId.includes(search);
-      });
-    }
-    
-    // Sort by latest first (assuming orders have created_at or similar timestamp)
-    // If no timestamp field exists, we'll sort by ID or order index
-    filtered.sort((a, b) => {
-      // Try to use created_at, updated_at, or id for sorting
-      const aDate = a.created_at || a.updated_at || a.id;
-      const bDate = b.created_at || b.updated_at || b.id;
-      
-      // If we have actual dates, parse them
-      if (aDate && bDate) {
-        const dateA = new Date(aDate).getTime() || parseInt(aDate) || 0;
-        const dateB = new Date(bDate).getTime() || parseInt(bDate) || 0;
-        return dateB - dateA; // Latest first
-      }
-      return 0;
-    });
-    
-    setFilteredOrders(filtered);
-    // Reset to first page when search changes
+    // Reset to first page and fetch when search changes
     setCurrentPage(1);
-  }, [searchQuery, orders]);
+    fetchOrders(1, searchQuery);
+  }, [searchQuery]);
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (page: number = currentPage, search: string = '') => {
     try {
+      setLoading(true);
+      
+      // Build search parameters for API
+      const params: any = {
+        page,
+        page_size: ordersPerPage,
+        ordering: '-created_at' // Latest first
+      };
+      
+      // Add search filters if provided
+      if (search.trim()) {
+        params.client_name = search;
+      }
+      
       let data;
       try {
-        data = await orderAPI.getUserOrders();
-      } catch (userOrdersError) {
+        // Use enquiry API with pagination - this has created_at field
+        data = await enquiryAPI.getAll(params);
+        
+      } catch (enquiryError) {
+        console.error('Enquiry API failed, trying fallback:', enquiryError);
+        // Fallback to other APIs if needed
         try {
-          data = await orderAPI.getCustomerOrders();
-        } catch (customerOrdersError) {
+          data = await orderAPI.getUserOrders();
+        } catch (userOrdersError) {
           try {
-            data = await orderAPI.getAll();
-          } catch (allOrdersError) {
+            data = await orderAPI.getCustomerOrders();
+          } catch (customerOrdersError) {
             try {
-              data = await enquiryAPI.getAll();
-            } catch (enquiriesError) {
-              console.error('All API endpoints failed:', enquiriesError);
-              throw enquiriesError;
+              data = await orderAPI.getAll();
+            } catch (allOrdersError) {
+              throw new Error('All API endpoints failed');
             }
           }
         }
       }
       
-      setOrders(data || []);
-      console.log("Ordrs: ",data)
-      setFilteredOrders(data || []);
-      setCurrentPage(1);
+      // Handle pagination response
+      if (data && typeof data === 'object' && 'results' in data) {
+        // Server-side paginated response
+        setOrders(data.results || []);
+        setTotalOrders(data.count || 0);
+        setTotalPages(Math.ceil((data.count || 0) / ordersPerPage));
+        setHasNext(!!data.next);
+        setHasPrevious(!!data.previous);
+      } else {
+        // Non-paginated response (fallback)
+        setOrders(data || []);
+        setTotalOrders((data || []).length);
+        setTotalPages(1);
+        setHasNext(false);
+        setHasPrevious(false);
+      }
+      
     } catch (error) {
       console.error('Error fetching orders:', error);
       Alert.alert('Error', 'Failed to fetch orders. Please try again.');
       setOrders([]);
-      setFilteredOrders([]);
+      setTotalOrders(0);
+      setTotalPages(1);
+      setHasNext(false);
+      setHasPrevious(false);
     } finally {
       setLoading(false);
     }
@@ -186,22 +212,23 @@ export default function ConfirmedOrders() {
     );
   }
 
-  // Calculate pagination
-  const totalOrders = filteredOrders.length;
-  const totalPages = Math.ceil(totalOrders / ordersPerPage);
+  // Server-side pagination - no client-side calculation needed
   const startIndex = (currentPage - 1) * ordersPerPage;
-  const endIndex = startIndex + ordersPerPage;
-  const currentOrders = filteredOrders.slice(startIndex, endIndex);
+  const endIndex = Math.min(startIndex + ordersPerPage, totalOrders);
 
   const goToNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
+    if (hasNext && currentPage < totalPages) {
+      const nextPage = currentPage + 1;
+      setCurrentPage(nextPage);
+      fetchOrders(nextPage, searchQuery);
     }
   };
 
   const goToPrevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
+    if (hasPrevious && currentPage > 1) {
+      const prevPage = currentPage - 1;
+      setCurrentPage(prevPage);
+      fetchOrders(prevPage, searchQuery);
     }
   };
 
@@ -240,22 +267,22 @@ export default function ConfirmedOrders() {
         </View>
 
         {/* Pagination Controls - Top */}
-        {totalPages > 1 && (
+        {/* {totalPages > 1 && (
           <View className="mb-4 flex-row justify-center items-center space-x-4">
             <Pressable
               onPress={goToPrevPage}
-              disabled={currentPage === 1}
+              disabled={!hasPrevious}
               className={`flex-row items-center px-4 py-2 rounded-lg ${
-                currentPage === 1 ? 'bg-gray-200' : 'bg-secondary'
+                !hasPrevious ? 'bg-gray-200' : 'bg-secondary'
               }`}
             >
               <Ionicons 
                 name="chevron-back" 
                 size={20} 
-                color={currentPage === 1 ? '#9CA3AF' : '#0a0a0a'} 
+                color={!hasPrevious ? '#9CA3AF' : '#0a0a0a'} 
               />
               <Text className={`ml-1 font-semibold ${
-                currentPage === 1 ? 'text-gray-400' : 'text-primary-950'
+                !hasPrevious ? 'text-gray-400' : 'text-primary-950'
               }`}>
                 Previous
               </Text>
@@ -267,24 +294,24 @@ export default function ConfirmedOrders() {
             
             <Pressable
               onPress={goToNextPage}
-              disabled={currentPage === totalPages}
+              disabled={!hasNext}
               className={`flex-row items-center px-4 py-2 rounded-lg ${
-                currentPage === totalPages ? 'bg-gray-200' : 'bg-secondary'
+                !hasNext ? 'bg-gray-200' : 'bg-secondary'
               }`}
             >
               <Text className={`mr-1 font-semibold ${
-                currentPage === totalPages ? 'text-gray-400' : 'text-primary-950'
+                !hasNext ? 'text-gray-400' : 'text-primary-950'
               }`}>
                 Next
               </Text>
               <Ionicons 
                 name="chevron-forward" 
                 size={20} 
-                color={currentPage === totalPages ? '#9CA3AF' : '#0a0a0a'} 
+                color={!hasNext ? '#9CA3AF' : '#0a0a0a'} 
               />
             </Pressable>
           </View>
-        )}
+        )} */}
 
         {/* Orders Cards */}
         <ScrollView 
@@ -294,7 +321,7 @@ export default function ConfirmedOrders() {
           }
           contentContainerStyle={{ paddingBottom: 32 }}
         >
-          {currentOrders.map((order, index) => (
+          {orders.map((order, index) => (
             <View key={order.id} className="bg-white rounded-xl shadow-lg mb-4 overflow-hidden border-l-4 border-secondary">
               {/* Card Header */}
               <View className="bg-primary-950 px-4 py-3 flex-row justify-between items-center">
@@ -341,26 +368,19 @@ export default function ConfirmedOrders() {
                   <View className="flex-1 mr-2">
                     <Text className="text-gray-600 text-xs mb-1">Order Date</Text>
                     <Text className="text-primary-950 text-sm">
-                      {order.created_at 
-                        ? new Date(order.created_at).toLocaleDateString('en-GB', {
-                            day: '2-digit',
-                            month: '2-digit', 
-                            year: 'numeric'
-                          })
-                        : order.po_date_str || 'Not available'
-                      }
+                      {formatDate(order.created_at || order.po_date_str)}
                     </Text>
                   </View>
                   <View className="flex-1 mr-2">
                     <Text className="text-gray-600 text-xs mb-1">PO Date</Text>
                     <Text className="text-primary-950 text-sm">
-                      {order.po_date_str || 'Not set'}
+                      {formatDate(order.po_date_str)}
                     </Text>
                   </View>
                   <View className="flex-1">
                     <Text className="text-gray-600 text-xs mb-1">Delivery Date</Text>
                     <Text className="text-primary-950 text-sm">
-                      {order.delivery_date_str || 'Not set'}
+                      {formatDate(order.delivery_date_str)}
                     </Text>
                   </View>
                 </View>
@@ -477,7 +497,7 @@ export default function ConfirmedOrders() {
             </View>
           ))}
 
-          {currentOrders.length === 0 && (
+          {orders.length === 0 && (
             <View className="bg-white rounded-xl p-8 items-center mx-2 mt-8">
               <Ionicons name="document-outline" size={64} color="#9CA3AF" />
               <Text className="text-gray-500 text-xl font-bold mt-4">
@@ -495,18 +515,18 @@ export default function ConfirmedOrders() {
           <View className="mt-4 flex-row justify-between items-center">
             <Pressable
               onPress={goToPrevPage}
-              disabled={currentPage === 1}
+              disabled={!hasPrevious}
               className={`flex-row items-center px-6 py-3 rounded-lg ${
-                currentPage === 1 ? 'bg-gray-200' : 'bg-secondary'
+                !hasPrevious ? 'bg-gray-200' : 'bg-secondary'
               }`}
             >
               <Ionicons 
                 name="chevron-back" 
                 size={24} 
-                color={currentPage === 1 ? '#9CA3AF' : '#0a0a0a'} 
+                color={!hasPrevious ? '#9CA3AF' : '#0a0a0a'} 
               />
               <Text className={`ml-2 font-semibold text-base ${
-                currentPage === 1 ? 'text-gray-400' : 'text-primary-950'
+                !hasPrevious ? 'text-gray-400' : 'text-primary-950'
               }`}>
                 Previous
               </Text>
@@ -520,20 +540,20 @@ export default function ConfirmedOrders() {
             
             <Pressable
               onPress={goToNextPage}
-              disabled={currentPage === totalPages}
+              disabled={!hasNext}
               className={`flex-row items-center px-6 py-3 rounded-lg ${
-                currentPage === totalPages ? 'bg-gray-200' : 'bg-secondary'
+                !hasNext ? 'bg-gray-200' : 'bg-secondary'
               }`}
             >
               <Text className={`mr-2 font-semibold text-base ${
-                currentPage === totalPages ? 'text-gray-400' : 'text-primary-950'
+                !hasNext ? 'text-gray-400' : 'text-primary-950'
               }`}>
                 Next
               </Text>
               <Ionicons 
                 name="chevron-forward" 
                 size={24} 
-                color={currentPage === totalPages ? '#9CA3AF' : '#0a0a0a'} 
+                color={!hasNext ? '#9CA3AF' : '#0a0a0a'} 
               />
             </Pressable>
           </View>
