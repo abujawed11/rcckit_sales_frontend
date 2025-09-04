@@ -23,6 +23,8 @@ export default function ConfirmedOrders() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [ordersPerPage] = useState(10);
   const router = useRouter();
 
   useEffect(() => {
@@ -30,18 +32,38 @@ export default function ConfirmedOrders() {
   }, []);
 
   useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredOrders(orders);
-    } else {
-      const filtered = orders.filter((order: any) => {
+    let filtered = orders;
+    
+    // Apply search filter
+    if (searchQuery.trim() !== '') {
+      filtered = orders.filter((order: any) => {
         const clientName = order.client_name?.toLowerCase() || '';
         const projectId = order.project_id?.toLowerCase() || '';
         const search = searchQuery.toLowerCase();
         
         return clientName.includes(search) || projectId.includes(search);
       });
-      setFilteredOrders(filtered);
     }
+    
+    // Sort by latest first (assuming orders have created_at or similar timestamp)
+    // If no timestamp field exists, we'll sort by ID or order index
+    filtered.sort((a, b) => {
+      // Try to use created_at, updated_at, or id for sorting
+      const aDate = a.created_at || a.updated_at || a.id;
+      const bDate = b.created_at || b.updated_at || b.id;
+      
+      // If we have actual dates, parse them
+      if (aDate && bDate) {
+        const dateA = new Date(aDate).getTime() || parseInt(aDate) || 0;
+        const dateB = new Date(bDate).getTime() || parseInt(bDate) || 0;
+        return dateB - dateA; // Latest first
+      }
+      return 0;
+    });
+    
+    setFilteredOrders(filtered);
+    // Reset to first page when search changes
+    setCurrentPage(1);
   }, [searchQuery, orders]);
 
   const fetchOrders = async () => {
@@ -67,7 +89,9 @@ export default function ConfirmedOrders() {
       }
       
       setOrders(data || []);
+      console.log("Ordrs: ",data)
       setFilteredOrders(data || []);
+      setCurrentPage(1);
     } catch (error) {
       console.error('Error fetching orders:', error);
       Alert.alert('Error', 'Failed to fetch orders. Please try again.');
@@ -162,6 +186,25 @@ export default function ConfirmedOrders() {
     );
   }
 
+  // Calculate pagination
+  const totalOrders = filteredOrders.length;
+  const totalPages = Math.ceil(totalOrders / ordersPerPage);
+  const startIndex = (currentPage - 1) * ordersPerPage;
+  const endIndex = startIndex + ordersPerPage;
+  const currentOrders = filteredOrders.slice(startIndex, endIndex);
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const goToPrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
   return (
     <View className="flex-1 bg-gray-50">
       <View className="flex-1 p-6">
@@ -184,12 +227,64 @@ export default function ConfirmedOrders() {
           </View>
         </View>
 
-        {/* Order Count */}
-        <View className="mb-4">
+        {/* Order Count and Pagination Info */}
+        <View className="mb-4 flex-row justify-between items-center">
           <Text className="text-lg font-semibold text-primary-950">
-            Total Orders: {filteredOrders.length}
+            Total Orders: {totalOrders}
           </Text>
+          {totalPages > 1 && (
+            <Text className="text-sm text-gray-600">
+              Page {currentPage} of {totalPages} • Showing {startIndex + 1}-{Math.min(endIndex, totalOrders)}
+            </Text>
+          )}
         </View>
+
+        {/* Pagination Controls - Top */}
+        {totalPages > 1 && (
+          <View className="mb-4 flex-row justify-center items-center space-x-4">
+            <Pressable
+              onPress={goToPrevPage}
+              disabled={currentPage === 1}
+              className={`flex-row items-center px-4 py-2 rounded-lg ${
+                currentPage === 1 ? 'bg-gray-200' : 'bg-secondary'
+              }`}
+            >
+              <Ionicons 
+                name="chevron-back" 
+                size={20} 
+                color={currentPage === 1 ? '#9CA3AF' : '#0a0a0a'} 
+              />
+              <Text className={`ml-1 font-semibold ${
+                currentPage === 1 ? 'text-gray-400' : 'text-primary-950'
+              }`}>
+                Previous
+              </Text>
+            </Pressable>
+            
+            <Text className="text-primary-950 font-bold text-lg">
+              {currentPage}
+            </Text>
+            
+            <Pressable
+              onPress={goToNextPage}
+              disabled={currentPage === totalPages}
+              className={`flex-row items-center px-4 py-2 rounded-lg ${
+                currentPage === totalPages ? 'bg-gray-200' : 'bg-secondary'
+              }`}
+            >
+              <Text className={`mr-1 font-semibold ${
+                currentPage === totalPages ? 'text-gray-400' : 'text-primary-950'
+              }`}>
+                Next
+              </Text>
+              <Ionicons 
+                name="chevron-forward" 
+                size={20} 
+                color={currentPage === totalPages ? '#9CA3AF' : '#0a0a0a'} 
+              />
+            </Pressable>
+          </View>
+        )}
 
         {/* Orders Cards */}
         <ScrollView 
@@ -199,7 +294,7 @@ export default function ConfirmedOrders() {
           }
           contentContainerStyle={{ paddingBottom: 32 }}
         >
-          {filteredOrders.map((order, index) => (
+          {currentOrders.map((order, index) => (
             <View key={order.id} className="bg-white rounded-xl shadow-lg mb-4 overflow-hidden border-l-4 border-secondary">
               {/* Card Header */}
               <View className="bg-primary-950 px-4 py-3 flex-row justify-between items-center">
@@ -212,7 +307,7 @@ export default function ConfirmedOrders() {
                   </Text>
                 </View>
                 <View className="bg-secondary px-3 py-1 rounded-full">
-                  <Text className="text-primary-950 font-bold text-sm">#{index + 1}</Text>
+                  <Text className="text-primary-950 font-bold text-sm">#{startIndex + index + 1}</Text>
                 </View>
               </View>
 
@@ -243,6 +338,19 @@ export default function ConfirmedOrders() {
 
                 {/* Dates Row */}
                 <View className="flex-row justify-between">
+                  <View className="flex-1 mr-2">
+                    <Text className="text-gray-600 text-xs mb-1">Order Date</Text>
+                    <Text className="text-primary-950 text-sm">
+                      {order.created_at 
+                        ? new Date(order.created_at).toLocaleDateString('en-GB', {
+                            day: '2-digit',
+                            month: '2-digit', 
+                            year: 'numeric'
+                          })
+                        : order.po_date_str || 'Not available'
+                      }
+                    </Text>
+                  </View>
                   <View className="flex-1 mr-2">
                     <Text className="text-gray-600 text-xs mb-1">PO Date</Text>
                     <Text className="text-primary-950 text-sm">
@@ -369,18 +477,67 @@ export default function ConfirmedOrders() {
             </View>
           ))}
 
-          {filteredOrders.length === 0 && (
+          {currentOrders.length === 0 && (
             <View className="bg-white rounded-xl p-8 items-center mx-2 mt-8">
               <Ionicons name="document-outline" size={64} color="#9CA3AF" />
               <Text className="text-gray-500 text-xl font-bold mt-4">
                 No orders found
               </Text>
               <Text className="text-gray-400 text-center mt-2 text-base">
-                {searchQuery ? 'Try adjusting your search criteria' : 'No confirmed orders available'}
+                {searchQuery ? 'Try adjusting your search criteria' : totalOrders > 0 ? `No orders on page ${currentPage}` : 'No confirmed orders available'}
               </Text>
             </View>
           )}
         </ScrollView>
+
+        {/* Pagination Controls - Bottom */}
+        {totalPages > 1 && (
+          <View className="mt-4 flex-row justify-between items-center">
+            <Pressable
+              onPress={goToPrevPage}
+              disabled={currentPage === 1}
+              className={`flex-row items-center px-6 py-3 rounded-lg ${
+                currentPage === 1 ? 'bg-gray-200' : 'bg-secondary'
+              }`}
+            >
+              <Ionicons 
+                name="chevron-back" 
+                size={24} 
+                color={currentPage === 1 ? '#9CA3AF' : '#0a0a0a'} 
+              />
+              <Text className={`ml-2 font-semibold text-base ${
+                currentPage === 1 ? 'text-gray-400' : 'text-primary-950'
+              }`}>
+                Previous
+              </Text>
+            </Pressable>
+            
+            <View className="bg-primary-950 px-4 py-2 rounded-lg">
+              <Text className="text-secondary font-bold text-lg">
+                {currentPage} / {totalPages}
+              </Text>
+            </View>
+            
+            <Pressable
+              onPress={goToNextPage}
+              disabled={currentPage === totalPages}
+              className={`flex-row items-center px-6 py-3 rounded-lg ${
+                currentPage === totalPages ? 'bg-gray-200' : 'bg-secondary'
+              }`}
+            >
+              <Text className={`mr-2 font-semibold text-base ${
+                currentPage === totalPages ? 'text-gray-400' : 'text-primary-950'
+              }`}>
+                Next
+              </Text>
+              <Ionicons 
+                name="chevron-forward" 
+                size={24} 
+                color={currentPage === totalPages ? '#9CA3AF' : '#0a0a0a'} 
+              />
+            </Pressable>
+          </View>
+        )}
       </View>
     </View>
   );

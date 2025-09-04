@@ -8,6 +8,8 @@ export type Order = {
   production_unit?: string;
   po_date_str?: string;
   delivery_date_str?: string;
+  created_at?: string;
+  updated_at?: string;
   total_kits?: string;
   payment_received?: string;
   payment_percentage?: string;
