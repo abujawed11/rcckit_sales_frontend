@@ -144,11 +144,33 @@ export default function ConfirmedOrders() {
     try {
       setLoading(true);
       const sr = (order as any)?.sr;
-      if (sr) {
+      const orderDbId = (order as any)?.id;
+      
+      console.log('=== Status Update Debug ===');
+      console.log('Order ID:', orderId);
+      console.log('Order DB ID:', orderDbId);
+      console.log('Field:', field);
+      console.log('Value:', value);
+      console.log('SR:', sr);
+      console.log('Full Order Object:', order);
+      console.log('==========================');
+      
+      if (orderDbId) {
+        // Use the database ID directly for faster updates
         const payload: any = {};
         payload[field] = value;
-        await enquiryAPI.patchBySr(sr, payload);
+        console.log('Using enquiryAPI.patchById with ID:', orderDbId, 'payload:', payload);
+        const response = await enquiryAPI.patchById(orderDbId, payload);
+        console.log('Update response:', response);
+      } else if (sr) {
+        // Fallback to SR-based lookup
+        const payload: any = {};
+        payload[field] = value;
+        console.log('Using enquiryAPI.patchBySr with payload:', payload);
+        const response = await enquiryAPI.patchBySr(sr, payload);
+        console.log('Update response:', response);
       } else {
+        console.log('No SR or DB ID found, using orderAPI.update');
         const updatePayload: any = {};
         updatePayload[field] = value;
         await orderAPI.update(orderId, updatePayload);
@@ -157,7 +179,8 @@ export default function ConfirmedOrders() {
       Alert.alert('Success', 'Status updated successfully!');
     } catch (error) {
       console.error('Error updating status:', error);
-      Alert.alert('Error', 'Failed to update status. Please try again.');
+      console.log('Full error object:', JSON.stringify(error, null, 2));
+      Alert.alert('Error', `Failed to update status: ${error.response?.data?.message || error.message}`);
     } finally {
       setLoading(false);
     }
@@ -392,11 +415,28 @@ export default function ConfirmedOrders() {
                   {/* Production Status */}
                   <View>
                     <Text className="text-gray-600 text-xs mb-2">Production Status</Text>
-                    <View className="border border-gray-300 rounded-md bg-white">
+                    <View className={`border rounded-md ${
+                      order.production_status === 'Planned' 
+                        ? 'border-yellow-300 bg-yellow-50' 
+                        : order.production_status === 'WIP'
+                        ? 'border-blue-300 bg-blue-50'
+                        : order.production_status === 'Done'
+                        ? 'border-green-300 bg-green-50'
+                        : 'border-gray-300 bg-white'
+                    }`}>
                       <Picker
                         selectedValue={order.production_status || ''}
                         onValueChange={(value) => handleStatusUpdate(order.id, 'production_status', value, order)}
-                        style={{ height: 50, color: '#0a0a0a' }}
+                        style={{ 
+                          height: 50, 
+                          color: order.production_status === 'Planned' 
+                            ? '#92400e' 
+                            : order.production_status === 'WIP'
+                            ? '#1e40af'
+                            : order.production_status === 'Done'
+                            ? '#166534'
+                            : '#0a0a0a'
+                        }}
                         dropdownIconColor="#FAD90E"
                       >
                         <Picker.Item label="Select Production Status" value="" />
@@ -410,11 +450,24 @@ export default function ConfirmedOrders() {
                   {/* Dispatch Status */}
                   <View>
                     <Text className="text-gray-600 text-xs mb-2">Dispatch Status</Text>
-                    <View className="border border-gray-300 rounded-md bg-white">
+                    <View className={`border rounded-md ${
+                      order.dispatch_status === 'Partial' 
+                        ? 'border-yellow-300 bg-yellow-50' 
+                        : order.dispatch_status === 'Completed'
+                        ? 'border-green-300 bg-green-50'
+                        : 'border-gray-300 bg-white'
+                    }`}>
                       <Picker
                         selectedValue={order.dispatch_status || ''}
                         onValueChange={(value) => handleStatusUpdate(order.id, 'dispatch_status', value, order)}
-                        style={{ height: 50, color: '#0a0a0a' }}
+                        style={{ 
+                          height: 50, 
+                          color: order.dispatch_status === 'Partial' 
+                            ? '#92400e' 
+                            : order.dispatch_status === 'Completed'
+                            ? '#166534'
+                            : '#0a0a0a'
+                        }}
                         dropdownIconColor="#FAD90E"
                       >
                         <Picker.Item label="Select Dispatch Status" value="" />
@@ -427,11 +480,24 @@ export default function ConfirmedOrders() {
                   {/* Production Unit */}
                   <View>
                     <Text className="text-gray-600 text-xs mb-2">Production Unit</Text>
-                    <View className="border border-gray-300 rounded-md bg-white">
+                    <View className={`border rounded-md ${
+                      order.production_unit === 'Boisar' 
+                        ? 'border-yellow-300 bg-yellow-50' 
+                        : order.production_unit === 'Ranchi'
+                        ? 'border-green-300 bg-green-50'
+                        : 'border-gray-300 bg-white'
+                    }`}>
                       <Picker
                         selectedValue={order.production_unit || ''}
                         onValueChange={(value) => handleStatusUpdate(order.id, 'production_unit', value, order)}
-                        style={{ height: 50, color: '#0a0a0a' }}
+                        style={{ 
+                          height: 50, 
+                          color: order.production_unit === 'Boisar' 
+                            ? '#92400e' 
+                            : order.production_unit === 'Ranchi'
+                            ? '#166534'
+                            : '#0a0a0a'
+                        }}
                         dropdownIconColor="#FAD90E"
                       >
                         <Picker.Item label="Select Production Unit" value="" />

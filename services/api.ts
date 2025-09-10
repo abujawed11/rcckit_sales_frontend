@@ -141,6 +141,7 @@ export const enquiryAPI = {
     ordering?: string;
     client_name?: string;
     project_id?: string;
+    sr?: string;
   }) => {
     const queryParams = new URLSearchParams();
     
@@ -149,6 +150,7 @@ export const enquiryAPI = {
     if (params?.ordering) queryParams.append('ordering', params.ordering);
     if (params?.client_name) queryParams.append('client_name', params.client_name);
     if (params?.project_id) queryParams.append('project_id', params.project_id);
+    if (params?.sr) queryParams.append('sr', params.sr);
     
     const url = `${API_CONFIG.ENDPOINTS.ENQUIRY}?${queryParams.toString()}`;
     const response = await api.get(url);
@@ -173,9 +175,29 @@ export const enquiryAPI = {
     const response = await api.put(`${API_CONFIG.ENDPOINTS.ENQUIRY}${id}/`, enquiryData);
     return response.data;
   },
-  patchBySr: async (sr: string, payload: any) => {
-    const response = await api.patch(`${API_CONFIG.ENDPOINTS.ENQUIRY}${sr}/`, payload);
+  patchById: async (id: string, payload: any) => {
+    const url = `${API_CONFIG.ENDPOINTS.ENQUIRY}${id}/`;
+    console.log('=== API Debug ===');
+    console.log('Patch URL:', url);
+    console.log('Full URL:', `${API_CONFIG.BASE_URL}${url}`);
+    console.log('Payload:', payload);
+    console.log('=================');
+    const response = await api.patch(url, payload);
     return response.data;
+  },
+
+  patchBySr: async (sr: string, payload: any) => {
+    // First, get the enquiry by SR to find its ID
+    const enquiries = await enquiryAPI.getAll({ sr: sr });
+    if (enquiries && enquiries.results && enquiries.results.length > 0) {
+      const enquiry = enquiries.results[0];
+      return await enquiryAPI.patchById(enquiry.id, payload);
+    } else if (enquiries && Array.isArray(enquiries) && enquiries.length > 0) {
+      const enquiry = enquiries[0];
+      return await enquiryAPI.patchById(enquiry.id, payload);
+    } else {
+      throw new Error(`No enquiry found with SR: ${sr}`);
+    }
   },
 
   delete: async (id: string) => {
